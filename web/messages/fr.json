@@ -1,0 +1,10 @@
+{
+  "App": {
+    "name": "Mbokk",
+    "tagline": "Registre de famille numérique du Sénégal"
+  },
+  "Nav": {
+    "search": "Chercher une personne ou une lignée…",
+    "myTrees": "Mes registres"
+  }
+}
