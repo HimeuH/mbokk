@@ -150,7 +150,7 @@ return [
     'string' => 'Le champ :attribute doit être une chaîne de caractères.',
     'timezone' => 'Le champ :attribute doit être un fuseau horaire valide.',
     'unique' => 'Cette valeur pour :attribute est déjà utilisée.',
-    'uploaded' => "Le téléversement du champ :attribute a échoué.",
+    'uploaded' => 'Le téléversement du champ :attribute a échoué.',
     'uppercase' => 'Le champ :attribute doit être en majuscules.',
     'url' => 'Le champ :attribute doit être une URL valide.',
     'ulid' => 'Le champ :attribute doit être un ULID valide.',

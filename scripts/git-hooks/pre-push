@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Installed via `make install-hooks` (symlinked to .git/hooks/pre-push,
+# since .git/hooks itself isn't tracked by git). Runs the same checks as
+# CI (.github/workflows/ci-api.yml) so a failure shows up locally instead
+# of on GitHub. Bypass for a single push with `git push --no-verify`.
+set -e
+
+echo "Running pre-push checks (make check)..."
+make check

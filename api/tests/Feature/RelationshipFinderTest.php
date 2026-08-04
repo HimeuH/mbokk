@@ -16,6 +16,7 @@ class RelationshipFinderTest extends TestCase
     use RefreshDatabase;
 
     private FamilyTree $tree;
+
     private User $owner;
 
     protected function setUp(): void

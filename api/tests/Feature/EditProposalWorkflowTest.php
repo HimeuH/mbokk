@@ -16,8 +16,11 @@ class EditProposalWorkflowTest extends TestCase
     use RefreshDatabase;
 
     private FamilyTree $tree;
+
     private User $owner;
+
     private User $contributor;
+
     private User $outsider;
 
     protected function setUp(): void

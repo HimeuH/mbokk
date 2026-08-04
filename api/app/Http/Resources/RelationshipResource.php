@@ -2,12 +2,13 @@
 
 namespace App\Http\Resources;
 
+use App\Models\Person;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
- * @property-read \App\Models\Person $person
- * @property-read \App\Models\Person $relatedPerson
+ * @property-read Person $person
+ * @property-read Person $relatedPerson
  */
 class RelationshipResource extends JsonResource
 {
