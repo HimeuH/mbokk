@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: mbokk
+      POSTGRES_USER: mbokk
+      POSTGRES_PASSWORD: mbokk
+    ports:
+      # Host 5432 already used by a local Postgres install — mapped to 5433 instead.
+      - "5433:5432"
+    volumes:
+      - mbokk-postgres:/var/lib/postgresql/data
+
+volumes:
+  mbokk-postgres:
