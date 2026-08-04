@@ -21,12 +21,10 @@ each command as-is.
 Repo → Settings → Secrets and variables → Actions. App config (`APP_KEY`,
 `DOMAIN`, `FRONTEND_URL`, `DB_*`) does **not** go here — it lives only in
 `.env` on the server (step 4), same as instantcaisse. GitHub only needs
-what it takes to reach the server and push an image:
+what it takes to reach the server over SSH:
 
 Reused from instantcaisse's repo (same values, just copy them over):
 
-- `DO_API_TOKEN`
-- `DO_REGISTRY`
 - `SERVER_HOST`
 - `SERVER_USER`
 - `SERVER_SSH_KEY`
@@ -35,6 +33,26 @@ Reused from instantcaisse's repo (same values, just copy them over):
 New, Mbokk-specific:
 
 - `APP_DIR` = `/opt/mbokk` (must NOT be instantcaisse's dir)
+
+No registry secret needed — the image is pushed to `ghcr.io/himeuh/mbokk-api`
+(GitHub Container Registry), authenticated with the auto-provided
+`GITHUB_TOKEN`. This was switched from DigitalOcean's DOCR after hitting
+its 5-repository plan limit (already maxed out by other projects sharing
+that registry). Since the package is public (step 3b below), the server
+pulls it with no authentication at all — one less credential to manage.
+
+### 3b. Make the GHCR package public (one time, after the first push)
+
+GitHub Packages default to **private** on first push — there's no way to
+set visibility before the package exists. After the first successful
+`build` job run:
+
+1. Go to `https://github.com/users/HimeuH/packages/container/package/mbokk-api`
+2. Package settings → **Change visibility** → **Public** → confirm
+
+Until this is done, the deploy's `docker compose pull` on the server will
+fail with an auth error even though the push succeeded — if step 7 fails
+at the pull step specifically, this is almost certainly why.
 
 ## 4. Create `.env` on the server (one time, by hand)
 
@@ -138,7 +156,7 @@ EMAIL=you@example.com ./init-letsencrypt-mbokk.sh
 ## 7. First deploy
 
 Push to `main` — `.github/workflows/deploy-api.yml` builds the image,
-pushes to DOCR, SSHes in, runs migrations against the new image (aborts
+pushes to GHCR, SSHes in, runs migrations against the new image (aborts
 before touching anything live if that fails, and before this step also
 aborts outright if `.env` from step 4 is missing), swaps the container,
 and rolls back automatically if the healthcheck doesn't pass within 3
