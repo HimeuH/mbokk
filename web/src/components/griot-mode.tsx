@@ -1,7 +1,7 @@
 "use client";
 
 import { Dialog } from "@base-ui/react/dialog";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { buildGriotNarration } from "@/lib/griot-narration";
 import type { Person, Relationship } from "@/lib/types";
 
@@ -30,9 +30,14 @@ export function GriotMode({
   const [index, setIndex] = useState(0);
   const touchStartX = useRef<number | null>(null);
 
-  useEffect(() => {
+  // Resetting derived state on a prop change belongs during render, not in
+  // an effect (react-hooks/set-state-in-effect) — this is React's own
+  // recommended pattern for it: https://react.dev/learn/you-might-not-need-an-effect
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (open !== prevOpen) {
+    setPrevOpen(open);
     if (open) setIndex(0);
-  }, [open]);
+  }
 
   const goNext = () => setIndex((i) => Math.min(i + 1, cards.length - 1));
   const goPrev = () => setIndex((i) => Math.max(i - 1, 0));

@@ -1,7 +1,7 @@
 "use client";
 
 import { Dialog } from "@base-ui/react/dialog";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Seal } from "@/components/seal";
 
 const PIN_LENGTH = 4;
@@ -32,9 +32,14 @@ export function PinKeypad({
 }) {
   const [digits, setDigits] = useState("");
 
-  useEffect(() => {
+  // Resetting derived state on a prop change belongs during render, not in
+  // an effect (react-hooks/set-state-in-effect) — this is React's own
+  // recommended pattern for it: https://react.dev/learn/you-might-not-need-an-effect
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (open !== prevOpen) {
+    setPrevOpen(open);
     if (!open) setDigits("");
-  }, [open]);
+  }
 
   const press = (key: string) => {
     if (pending) return;

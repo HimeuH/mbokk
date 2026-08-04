@@ -1,11 +1,12 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { PinKeypad } from "@/components/pin-keypad";
 import { apiFetch, ApiError, firstErrorMessage } from "@/lib/api-client";
 import { getAuthToken } from "@/lib/auth-token";
+import { useMounted } from "@/lib/use-mounted";
 import type { AuthUser } from "@/lib/types";
 
 /**
@@ -16,8 +17,7 @@ import type { AuthUser } from "@/lib/types";
  * since /auth/login only works once pin_hash is already set.
  */
 export function SetPinPrompt() {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  const mounted = useMounted();
 
   const [dismissed, setDismissed] = useState(false);
   const [keypadOpen, setKeypadOpen] = useState(false);

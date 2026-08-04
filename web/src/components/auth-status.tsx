@@ -2,10 +2,10 @@
 
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
-import { useEffect, useState } from "react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { apiFetch } from "@/lib/api-client";
 import { clearAuthToken, getAuthToken } from "@/lib/auth-token";
+import { useMounted } from "@/lib/use-mounted";
 
 interface Me {
   id: number;
@@ -18,8 +18,7 @@ export function AuthStatus() {
   // the first pass. Wait for the client to mount before trusting getAuthToken()
   // — otherwise a logged-in client's very first render diverges from the
   // server-rendered HTML and React throws a hydration mismatch.
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  const mounted = useMounted();
 
   const { data, isLoading } = useQuery({
     queryKey: ["me"],
