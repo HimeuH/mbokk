@@ -1,0 +1,84 @@
+services:
+  # ------------------------------------------------------------------
+  # PHP-FPM application (api/)
+  # nginx is handled by the shared proxy at /opt/proxy/
+  # ------------------------------------------------------------------
+  app:
+    image: "${REGISTRY}/mbokk-api:${IMAGE_TAG:-latest}"
+    container_name: mbokk-app
+    restart: unless-stopped
+    environment:
+      APP_ENV: production
+      APP_DEBUG: "false"
+      APP_LOCALE: fr
+      APP_KEY: "${APP_KEY}"
+      APP_URL: "https://${DOMAIN}"
+      FRONTEND_URL: "${FRONTEND_URL}"
+      SANCTUM_STATEFUL_DOMAINS: "${SANCTUM_STATEFUL_DOMAINS}"
+      DB_CONNECTION: pgsql
+      DB_HOST: pgsql
+      DB_PORT: "${DB_PORT:-5432}"
+      DB_DATABASE: "${DB_DATABASE}"
+      DB_USERNAME: "${DB_USERNAME}"
+      DB_PASSWORD: "${DB_PASSWORD}"
+      # No queue/redis in this app (no queued jobs, no cookie-session auth —
+      # pure Bearer tokens via Sanctum HasApiTokens) — keep it lean.
+      SESSION_DRIVER: file
+      CACHE_STORE: database
+      QUEUE_CONNECTION: sync
+      LOG_CHANNEL: stderr
+    volumes:
+      # Static built assets — synced into this volume by the entrypoint on
+      # every boot, mounted read-only by the shared proxy nginx.
+      - "app_public:/var/www/public"
+      # Uploaded person photos (PersonController) — persistent, mounted
+      # read-write here and read-only in nginx, no copy step (unlike the
+      # static assets above), so uploads survive container replacement.
+      - "storage_public:/var/www/html/storage/app/public"
+    depends_on:
+      pgsql:
+        condition: service_healthy
+    networks:
+      - internal
+      - proxy
+    healthcheck:
+      test: ["CMD-SHELL", "php-fpm-healthcheck || exit 1"]
+      interval: 15s
+      retries: 5
+      start_period: 90s
+
+  # ------------------------------------------------------------------
+  # PostgreSQL — isolated to this app, own volume, own internal network
+  # (a separate, unrelated container from any other app's pgsql on this
+  # droplet, e.g. instantcaisse's).
+  # ------------------------------------------------------------------
+  pgsql:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: "${DB_DATABASE}"
+      POSTGRES_USER: "${DB_USERNAME}"
+      POSTGRES_PASSWORD: "${DB_PASSWORD}"
+    volumes:
+      - "pgsql_data:/var/lib/postgresql/data"
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME} -d ${DB_DATABASE}"]
+      interval: 10s
+      retries: 5
+      timeout: 5s
+
+volumes:
+  # Explicit names so the shared proxy can reference them as external volumes.
+  app_public:
+    name: mbokk_public
+  storage_public:
+    name: mbokk_storage_public
+  pgsql_data:
+
+networks:
+  internal:
+    internal: true
+  proxy:
+    external: true
