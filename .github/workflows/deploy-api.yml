@@ -29,7 +29,7 @@ concurrency:
 #   SERVER_PORT                 — optional SSH port (default: 22)
 #   APP_DIR                      — Mbokk-specific deploy dir, e.g. /opt/mbokk (do NOT reuse instantcaisse's)
 #   APP_KEY                       — Laravel app key for THIS app (php artisan key:generate --show)
-#   DOMAIN                         — api.mbokk.fawzaynigroup.com
+#   DOMAIN                         — api.mbokk.samafacture.com
 #   FRONTEND_URL                    — the web/ origin, drives CORS
 #   SANCTUM_STATEFUL_DOMAINS         — usually same host as FRONTEND_URL, no scheme
 #   DB_DATABASE / DB_USERNAME / DB_PASSWORD — Mbokk's own Postgres, isolated from instantcaisse's
@@ -205,7 +205,7 @@ jobs:
           sleep 5
           HTTP_CODE=$(curl -o /dev/null -s -w "%{http_code}" \
             --max-time 15 \
-            "https://api.mbokk.fawzaynigroup.com/api/search?q=ab" || echo "000")
+            "https://api.mbokk.samafacture.com/api/search?q=ab" || echo "000")
           echo "HTTP response: ${HTTP_CODE}"
           if [[ ! "${HTTP_CODE}" =~ ^(200|422)$ ]]; then
             echo "Smoke test failed (HTTP ${HTTP_CODE})"

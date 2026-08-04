@@ -10,7 +10,7 @@ each command as-is.
 
 ## 1. DNS
 
-Point `api.mbokk.fawzaynigroup.com` (A record) at the droplet's IP —
+Point `api.mbokk.samafacture.com` (A record) at the droplet's IP —
 same IP `instantcaisse.com` already resolves to. Wait for propagation
 before step 4 (Let's Encrypt needs it resolvable).
 
@@ -37,7 +37,7 @@ instantcaisse's repo (same values, just copy them over):
 New, Mbokk-specific:
 
 - `APP_DIR` = `/opt/mbokk` (must NOT be instantcaisse's dir)
-- `DOMAIN` = `api.mbokk.fawzaynigroup.com`
+- `DOMAIN` = `api.mbokk.samafacture.com`
 - `APP_KEY` — generate locally, never share this in chat/logs:
   ```bash
   cd api && php artisan key:generate --show
@@ -45,11 +45,11 @@ New, Mbokk-specific:
   copy the `base64:...` output as the secret value.
 - `FRONTEND_URL` — the `web/` origin once it's deployed (drives CORS,
   `api/config/cors.php`). If `web/` isn't live yet, use a placeholder
-  like `https://mbokk.fawzaynigroup.com` and update the secret later —
+  like `https://mbokk.samafacture.com` and update the secret later —
   nothing breaks, it just means the frontend can't call the API cross-origin
   until this matches the real deployed frontend URL.
 - `SANCTUM_STATEFUL_DOMAINS` — same host as `FRONTEND_URL`, no scheme
-  (e.g. `mbokk.fawzaynigroup.com`)
+  (e.g. `mbokk.samafacture.com`)
 - `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD` — pick fresh values for
   Mbokk's own Postgres (isolated container, not shared with instantcaisse's)
 
@@ -108,7 +108,7 @@ stay unaffected:
 ```bash
 cd /opt/proxy
 cp init-letsencrypt.sh init-letsencrypt-mbokk.sh
-sed -i 's/DOMAIN="api.sivoiced.samafacture.com"/DOMAIN="api.mbokk.fawzaynigroup.com"/' init-letsencrypt-mbokk.sh
+sed -i 's/DOMAIN="api.sivoiced.samafacture.com"/DOMAIN="api.mbokk.samafacture.com"/' init-letsencrypt-mbokk.sh
 EMAIL=you@example.com ./init-letsencrypt-mbokk.sh
 ```
 
@@ -132,7 +132,7 @@ docker compose -f docker-compose.prod.yml --env-file .env exec app php artisan d
 ## 7. Smoke test
 
 ```bash
-curl -i https://api.mbokk.fawzaynigroup.com/api/search?q=ab
+curl -i https://api.mbokk.samafacture.com/api/search?q=ab
 ```
 
 Expect `200` with `{"success":true,"data":{"people":[...],"trees":[...]}}`.
