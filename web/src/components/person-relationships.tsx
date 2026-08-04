@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { apiFetch, ApiError } from "@/lib/api-client";
+import { apiFetch, ApiError, firstErrorMessage } from "@/lib/api-client";
 import { isEditProposal, type Person, type Relationship, type RelationshipType } from "@/lib/types";
 
 const PROPOSAL_SUBMITTED_MESSAGE =
@@ -61,7 +61,7 @@ export function PersonRelationships({ person }: { person: Person }) {
       setInfo(isEditProposal(result) ? PROPOSAL_SUBMITTED_MESSAGE : null);
       invalidate();
     },
-    onError: (err: ApiError) => setError(err.message),
+    onError: (err: ApiError) => setError(firstErrorMessage(err)),
   });
 
   const removeRelationship = useMutation({
@@ -73,7 +73,7 @@ export function PersonRelationships({ person }: { person: Person }) {
       setInfo(isEditProposal(result) ? PROPOSAL_SUBMITTED_MESSAGE : null);
       invalidate();
     },
-    onError: (err: ApiError) => setError(err.message),
+    onError: (err: ApiError) => setError(firstErrorMessage(err)),
   });
 
   return (

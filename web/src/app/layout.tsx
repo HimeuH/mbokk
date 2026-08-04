@@ -3,6 +3,7 @@ import { Fraunces, Source_Serif_4, IBM_Plex_Mono } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages } from "next-intl/server";
 import { Nav } from "@/components/nav";
+import { SetPinPrompt } from "@/components/set-pin-prompt";
 import { QueryProvider } from "./query-provider";
 import "./globals.css";
 
@@ -54,6 +55,7 @@ export default async function RootLayout({
         <NextIntlClientProvider messages={messages}>
           <QueryProvider>
             <Nav />
+            <SetPinPrompt />
             {children}
           </QueryProvider>
         </NextIntlClientProvider>

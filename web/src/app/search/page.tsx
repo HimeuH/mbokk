@@ -50,18 +50,34 @@ export default async function SearchPage({
                 </li>
               )}
               {results.people.map((person) => (
-                <li key={person.id} className="flex items-center justify-between p-4">
-                  <span>
-                    {person.first_name} {person.last_name}
-                  </span>
-                  {person.family_tree && (
-                    <Link
-                      href={`/trees/${person.family_tree.slug}`}
-                      className="font-mono text-xs uppercase tracking-wider text-accent"
-                    >
-                      {person.family_tree.name}
-                    </Link>
-                  )}
+                <li key={person.id}>
+                  <Link
+                    href={`/people/${person.id}`}
+                    className="flex items-center gap-3 p-4 hover:bg-muted"
+                  >
+                    {person.photo_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={person.photo_url}
+                        alt=""
+                        className="size-9 shrink-0 rounded-full object-cover"
+                      />
+                    ) : (
+                      <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent/15 font-display text-sm text-accent">
+                        {person.first_name.charAt(0).toUpperCase()}
+                      </span>
+                    )}
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate font-medium">
+                        {person.first_name} {person.last_name}
+                      </span>
+                      {person.family_tree && (
+                        <span className="block truncate font-mono text-xs text-muted-foreground">
+                          {person.family_tree.name}
+                        </span>
+                      )}
+                    </span>
+                  </Link>
                 </li>
               ))}
             </ul>
@@ -78,12 +94,15 @@ export default async function SearchPage({
                 </li>
               )}
               {results.trees.map((tree) => (
-                <li key={tree.id}>
+                <li key={tree.id} className="flex items-center justify-between p-4">
+                  <Link href={`/trees/${tree.slug}`} className="hover:underline">
+                    {tree.name}
+                  </Link>
                   <Link
-                    href={`/trees/${tree.slug}`}
-                    className="flex items-center justify-between p-4 hover:bg-muted"
+                    href={`/trees/${tree.slug}/request-access`}
+                    className="font-mono text-xs text-accent underline underline-offset-4"
                   >
-                    <span>{tree.name}</span>
+                    Demander l&apos;accès
                   </Link>
                 </li>
               ))}

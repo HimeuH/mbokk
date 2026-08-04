@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { apiFetch, ApiError } from "@/lib/api-client";
+import { apiFetch, ApiError, firstErrorMessage } from "@/lib/api-client";
 import { useRequireAuth } from "@/lib/use-require-auth";
 import type { Person, RelationshipPathResult, RelationshipPathStep } from "@/lib/types";
 
@@ -94,7 +94,7 @@ export default function RelationshipFinderPage() {
       );
       setResult(data);
     } catch (err) {
-      setError((err as ApiError).message);
+      setError(firstErrorMessage(err as ApiError));
     } finally {
       setPending(false);
     }

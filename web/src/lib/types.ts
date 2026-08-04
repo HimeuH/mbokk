@@ -7,6 +7,19 @@ export interface FamilyTree {
   description: string | null;
   owner_user_id: number;
   role?: TreeRole;
+  pending_proposals_count?: number | null;
+  pending_access_requests_count?: number | null;
+  created_at: string;
+}
+
+// Someone with no session and no saved invite link asking an admin to
+// re-invite them — the self-serve half of the no-recovery gap (see
+// docs/mvp-plan.md Phase 2). Resolving still means a real invite.
+export interface AccessRequest {
+  id: number;
+  family_tree_id: number;
+  phone: string;
+  message: string | null;
   created_at: string;
 }
 
@@ -16,12 +29,36 @@ export interface TreeMember {
   user: { id: number; name: string | null; phone: string };
 }
 
+// Every invite (new or re-invite, TreeMemberController@store) returns a
+// fresh single-use link — the admin shares it themselves, the app never does.
+export interface InviteResult {
+  member: TreeMember;
+  invite_url: string;
+}
+
+export interface AuthUser {
+  id: number;
+  name: string | null;
+  phone: string;
+  // Set on first proposal approve/reject, not at login — see EditProposalController.
+  has_pin: boolean;
+}
+
+export interface AuthResponse {
+  user: AuthUser;
+  token: string;
+}
+
+export interface InviteClaimResponse extends AuthResponse {
+  family_tree: FamilyTree;
+}
+
 export type EditProposalAction = "create" | "update" | "delete";
 
 export interface EditProposal {
   id: number;
   family_tree_id: number;
-  proposer: { id: number; name: string | null } | null;
+  proposer: { id: number; name: string | null; phone: string } | null;
   target_type: "person" | "relationship";
   target_id: number | null;
   action: EditProposalAction;

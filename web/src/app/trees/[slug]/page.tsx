@@ -4,14 +4,16 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { AccessRequestsQueue } from "@/components/access-requests-queue";
 import { EditProposalsQueue } from "@/components/edit-proposals-queue";
 import { FamilyTreeView } from "@/components/family-tree-view";
+import { LineageRail } from "@/components/lineage-rail";
 import { PersonCard } from "@/components/person-card";
 import { PersonForm, type PersonFormValues } from "@/components/person-form";
 import { PersonRelationships } from "@/components/person-relationships";
 import { TreeMembers } from "@/components/tree-members";
 import { TreePersonPanel } from "@/components/tree-person-panel";
-import { apiFetch, ApiError } from "@/lib/api-client";
+import { apiFetch, ApiError, firstErrorMessage } from "@/lib/api-client";
 import { useRequireAuth } from "@/lib/use-require-auth";
 import {
   isEditProposal,
@@ -64,7 +66,7 @@ export default function TreeDetailPage() {
       setInfo(isEditProposal(result) ? PROPOSAL_SUBMITTED_MESSAGE : null);
       invalidate();
     },
-    onError: (err: ApiError) => setError(err.message),
+    onError: (err: ApiError) => setError(firstErrorMessage(err)),
   });
 
   const updatePerson = useMutation({
@@ -81,7 +83,7 @@ export default function TreeDetailPage() {
       setInfo(isEditProposal(result) ? PROPOSAL_SUBMITTED_MESSAGE : null);
       invalidate();
     },
-    onError: (err: ApiError) => setError(err.message),
+    onError: (err: ApiError) => setError(firstErrorMessage(err)),
   });
 
   const deletePerson = useMutation({
@@ -92,7 +94,7 @@ export default function TreeDetailPage() {
       setInfo(isEditProposal(result) ? PROPOSAL_SUBMITTED_MESSAGE : null);
       invalidate();
     },
-    onError: (err: ApiError) => setError(err.message),
+    onError: (err: ApiError) => setError(firstErrorMessage(err)),
   });
 
   if (isLoading) {
@@ -172,13 +174,21 @@ export default function TreeDetailPage() {
             onSelectPerson={setSelectedTreePerson}
           />
           {selectedTreePerson && (
-            <TreePersonPanel
-              person={selectedTreePerson}
-              people={people}
-              relationships={relationships}
-              onSelectPerson={setSelectedTreePerson}
-              onClose={() => setSelectedTreePerson(null)}
-            />
+            <>
+              <LineageRail
+                person={selectedTreePerson}
+                people={people}
+                relationships={relationships}
+                onSelectPerson={setSelectedTreePerson}
+              />
+              <TreePersonPanel
+                person={selectedTreePerson}
+                people={people}
+                relationships={relationships}
+                onSelectPerson={setSelectedTreePerson}
+                onClose={() => setSelectedTreePerson(null)}
+              />
+            </>
           )}
         </div>
       )}
@@ -301,7 +311,8 @@ export default function TreeDetailPage() {
             <span className="font-mono text-xs text-muted-foreground hidden group-open:inline">‹</span>
           </summary>
           <div className="flex flex-col gap-8 border-t border-border p-4">
-            <TreeMembers slug={slug} />
+            <TreeMembers slug={slug} treeName={tree.name} />
+            <AccessRequestsQueue slug={slug} />
             <EditProposalsQueue slug={slug} />
           </div>
         </details>

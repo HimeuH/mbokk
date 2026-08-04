@@ -49,3 +49,20 @@ export async function apiFetch<T>(
 
   return body as T;
 }
+
+/**
+ * `ApiError.message` is only ever the generic envelope message ("Les
+ * données envoyées sont invalides.") — the actual reason lives in `errors`
+ * (App\Http\Responses\ApiResponse::error()'s per-field validation map).
+ * Surface that instead wherever a form shows a single error string, so
+ * "numéro déjà associé à un compte" doesn't get swallowed by "données
+ * invalides".
+ */
+export function firstErrorMessage(err: ApiError): string {
+  if (err.errors) {
+    for (const messages of Object.values(err.errors)) {
+      if (messages?.[0]) return messages[0];
+    }
+  }
+  return err.message;
+}

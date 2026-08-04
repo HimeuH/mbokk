@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { GriotTrigger } from "@/components/griot-trigger";
 import { PersonCard } from "@/components/person-card";
+import { PhotoFrame } from "@/components/photo-frame";
+import { Seal } from "@/components/seal";
 import { apiFetch, ApiError } from "@/lib/api-client";
 import { categorizeRelationships } from "@/lib/relationships";
 import type { Person, Relationship } from "@/lib/types";
@@ -53,26 +56,23 @@ export default async function PersonProfilePage({
     person.id,
     peopleById,
   );
-  const hasNoRelations = parents.length === 0 && spouses.length === 0 && children.length === 0;
+  // Spouses aren't listed on their own anymore — a spouse who's also a
+  // parent surfaces naturally when their child's own fiche is opened
+  // (Parents section there). The one gap that leaves: a spouse with no
+  // shared children yet would otherwise never appear anywhere on this
+  // profile, so that specific case gets a compact fallback line instead of
+  // a full section (docs/mobile-design-implementation-plan.md WP-0(b)).
+  const showSpouseFallback = spouses.length > 0 && children.length === 0;
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-8 px-6 py-16">
       <header className="flex items-center gap-4">
-        {person.photo_url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={person.photo_url}
-            alt=""
-            className="size-16 shrink-0 rounded-full object-cover"
-          />
-        ) : (
-          <span className="flex size-16 shrink-0 items-center justify-center rounded-full bg-accent/15 font-display text-2xl text-accent">
-            {person.first_name.charAt(0).toUpperCase()}
-          </span>
-        )}
+        <PhotoFrame person={person} />
         <div>
-          <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">
+          <p className="flex items-center gap-2 font-mono text-xs uppercase tracking-widest text-muted-foreground">
             Mbokk · Profil
+            <Seal status="stamped" size="sm" />
+            <span>Public</span>
           </p>
           <h1 className="font-display text-3xl font-semibold text-balance">
             {person.first_name} {person.last_name}
@@ -94,37 +94,35 @@ export default async function PersonProfilePage({
 
       {person.bio && <p className="text-muted-foreground">{person.bio}</p>}
 
-      {hasNoRelations && (
-        <p className="font-mono text-xs text-muted-foreground">
-          Aucune relation publique connue.
-        </p>
-      )}
+      <GriotTrigger
+        person={person}
+        relationships={relationships}
+        categorized={{ parents, spouses, children }}
+      />
 
-      {parents.length > 0 && (
-        <section>
-          <h2 className="font-mono text-xs uppercase tracking-wider text-muted-foreground">
-            Parents
-          </h2>
+      <section>
+        <h2 className="font-mono text-xs uppercase tracking-wider text-muted-foreground">
+          Parents
+        </h2>
+        {parents.length > 0 ? (
           <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
             {parents.map((parent) => (
-              <PersonCard key={parent.id} person={parent} />
+              <div key={parent.id} className="flex flex-col gap-1">
+                <PersonCard person={parent} />
+                {parent.family_tree && person.family_tree && parent.family_tree.slug !== person.family_tree.slug && (
+                  <span className="w-fit rounded-full border border-primary px-2 py-0.5 font-mono text-[0.6rem] text-primary">
+                    Registre {parent.family_tree.name}
+                  </span>
+                )}
+              </div>
             ))}
           </div>
-        </section>
-      )}
-
-      {spouses.length > 0 && (
-        <section>
-          <h2 className="font-mono text-xs uppercase tracking-wider text-muted-foreground">
-            Conjoint·e·s
-          </h2>
-          <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
-            {spouses.map((spouse) => (
-              <PersonCard key={spouse.id} person={spouse} />
-            ))}
-          </div>
-        </section>
-      )}
+        ) : (
+          <p className="mt-2 font-mono text-xs text-muted-foreground italic">
+            Souche du registre — aucun parent enregistré.
+          </p>
+        )}
+      </section>
 
       {children.length > 0 && (
         <section>
@@ -137,6 +135,25 @@ export default async function PersonProfilePage({
             ))}
           </div>
         </section>
+      )}
+
+      {showSpouseFallback && (
+        <p className="font-mono text-xs text-muted-foreground">
+          Marié·e à{" "}
+          {spouses.map((spouse, i) => (
+            <span key={spouse.id}>
+              {i > 0 && ", "}
+              <Link href={`/people/${spouse.id}`} className="text-accent underline underline-offset-4">
+                {spouse.first_name} {spouse.last_name}
+              </Link>
+              {spouse.family_tree && person.family_tree && spouse.family_tree.slug !== person.family_tree.slug && (
+                <span className="ml-1 rounded-full border border-primary px-1.5 py-0.5 text-[0.6rem] text-primary">
+                  {spouse.family_tree.name}
+                </span>
+              )}
+            </span>
+          ))}
+        </p>
       )}
     </div>
   );

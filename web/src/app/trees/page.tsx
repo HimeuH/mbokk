@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { apiFetch, ApiError } from "@/lib/api-client";
+import { apiFetch, ApiError, firstErrorMessage } from "@/lib/api-client";
 import { useRequireAuth } from "@/lib/use-require-auth";
 import type { FamilyTree } from "@/lib/types";
 
@@ -33,7 +33,7 @@ export default function TreesPage() {
       setDescription("");
       queryClient.invalidateQueries({ queryKey: ["trees"] });
     },
-    onError: (err: ApiError) => setError(err.message),
+    onError: (err: ApiError) => setError(firstErrorMessage(err)),
   });
 
   return (
@@ -98,19 +98,35 @@ export default function TreesPage() {
           <Link
             key={tree.id}
             href={`/trees/${tree.slug}`}
-            className="flex items-center justify-between p-4 hover:bg-muted"
+            className="flex items-center justify-between gap-4 p-4 hover:bg-muted"
           >
-            <div>
-              <p className="font-medium">{tree.name}</p>
+            <div className="min-w-0">
+              <p className="truncate font-display text-lg font-semibold">
+                {tree.name}
+              </p>
               {tree.description && (
-                <p className="text-sm text-muted-foreground">
+                <p className="truncate text-sm text-muted-foreground">
                   {tree.description}
                 </p>
               )}
             </div>
-            <span className="font-mono text-xs uppercase tracking-wider text-accent">
-              {tree.role}
-            </span>
+            <div className="flex shrink-0 items-center gap-2">
+              {!!tree.pending_access_requests_count && (
+                <span className="rounded-full bg-primary px-2.5 py-0.5 font-mono text-[0.65rem] font-medium text-primary-foreground">
+                  {tree.pending_access_requests_count}{" "}
+                  demande{tree.pending_access_requests_count > 1 ? "s" : ""}
+                </span>
+              )}
+              {!!tree.pending_proposals_count && (
+                <span className="rounded-full bg-accent px-2.5 py-0.5 font-mono text-[0.65rem] font-medium text-accent-foreground">
+                  {tree.pending_proposals_count}{" "}
+                  proposition{tree.pending_proposals_count > 1 ? "s" : ""}
+                </span>
+              )}
+              <span className="font-mono text-xs tracking-wider text-accent uppercase">
+                {tree.role}
+              </span>
+            </div>
           </Link>
         ))}
       </section>
