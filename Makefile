@@ -1,8 +1,16 @@
-.PHONY: check check-api check-web fix fix-api fix-web install-hooks
+.PHONY: check check-all check-api check-web fix fix-api fix-web install-hooks
 
-# Mirrors exactly what CI runs (.github/workflows/ci-api.yml) — run this
-# before pushing so a failure shows up here, not in GitHub.
-check: check-api check-web
+# Mirrors exactly what CI runs (.github/workflows/ci-api.yml) — this is
+# what the pre-push hook calls, so it only blocks on what would actually
+# fail in GitHub today. web/ has no CI workflow yet (see check-web below),
+# so it's deliberately excluded here — use `make check-all` to include it.
+check: check-api
+
+# Everything, including web/ — not run by the pre-push hook yet since
+# web/'s pre-existing react-hooks/set-state-in-effect lint errors aren't
+# fixed yet and nothing in CI checks web/ regardless. Fold web/ into
+# `check` once both are true.
+check-all: check-api check-web
 
 check-api:
 	cd api && vendor/bin/pint --test
