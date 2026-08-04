@@ -30,7 +30,7 @@ RUN apk add --no-cache \
     && docker-php-ext-install -j"$(nproc)" \
         pdo \
         pdo_pgsql \
-    && docker-php-ext-install opcache \
+    && docker-php-ext-enable opcache \
     && wget -O /usr/local/bin/php-fpm-healthcheck \
          https://raw.githubusercontent.com/renatomefi/php-fpm-healthcheck/master/php-fpm-healthcheck \
     && chmod +x /usr/local/bin/php-fpm-healthcheck
