@@ -14,7 +14,6 @@ services:
       APP_KEY: "${APP_KEY}"
       APP_URL: "https://${DOMAIN}"
       FRONTEND_URL: "${FRONTEND_URL}"
-      SANCTUM_STATEFUL_DOMAINS: "${SANCTUM_STATEFUL_DOMAINS}"
       DB_CONNECTION: pgsql
       DB_HOST: pgsql
       DB_PORT: "${DB_PORT:-5432}"

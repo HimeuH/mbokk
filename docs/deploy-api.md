@@ -8,24 +8,22 @@ automatically via `.github/workflows/deploy-api.yml`.
 Everything here is manual (I have no SSH access to run it for you) — copy
 each command as-is.
 
-## 1. DNS
+## 1. DNS — done
 
-Point `api.mbokk.samafacture.com` (A record) at the droplet's IP —
-same IP `instantcaisse.com` already resolves to. Wait for propagation
-before step 4 (Let's Encrypt needs it resolvable).
+`api.mbokk.samafacture.com` already points at the droplet.
 
-## 2. GitHub repo
+## 2. GitHub repo — done
 
-```bash
-cd /Users/fawzayni/Documents/dev/main/my-projects/my-owners/little_apps/mbokk
-git remote add origin <MBOKK_GITHUB_URL>
-git push -u origin main
-```
+`origin` is `https://github.com/HimeuH/mbokk.git`, pushed.
 
-## 3. GitHub Actions secrets
+## 3. GitHub Actions secrets — deploy mechanics only
 
-Repo → Settings → Secrets and variables → Actions. Reused from
-instantcaisse's repo (same values, just copy them over):
+Repo → Settings → Secrets and variables → Actions. App config (`APP_KEY`,
+`DOMAIN`, `FRONTEND_URL`, `DB_*`) does **not** go here — it lives only in
+`.env` on the server (step 4), same as instantcaisse. GitHub only needs
+what it takes to reach the server and push an image:
+
+Reused from instantcaisse's repo (same values, just copy them over):
 
 - `DO_API_TOKEN`
 - `DO_REGISTRY`
@@ -37,23 +35,48 @@ instantcaisse's repo (same values, just copy them over):
 New, Mbokk-specific:
 
 - `APP_DIR` = `/opt/mbokk` (must NOT be instantcaisse's dir)
-- `DOMAIN` = `api.mbokk.samafacture.com`
-- `APP_KEY` — generate locally, never share this in chat/logs:
-  ```bash
-  cd api && php artisan key:generate --show
-  ```
-  copy the `base64:...` output as the secret value.
-- `FRONTEND_URL` — the `web/` origin once it's deployed (drives CORS,
-  `api/config/cors.php`). If `web/` isn't live yet, use a placeholder
-  like `https://mbokk.samafacture.com` and update the secret later —
-  nothing breaks, it just means the frontend can't call the API cross-origin
-  until this matches the real deployed frontend URL.
-- `SANCTUM_STATEFUL_DOMAINS` — same host as `FRONTEND_URL`, no scheme
-  (e.g. `mbokk.samafacture.com`)
-- `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD` — pick fresh values for
-  Mbokk's own Postgres (isolated container, not shared with instantcaisse's)
 
-## 4. Shared proxy — nginx vhost + volumes
+## 4. Create `.env` on the server (one time, by hand)
+
+The deploy workflow refuses to run if this file doesn't exist yet — it
+never creates or writes app secrets itself, only the `IMAGE_TAG=` line on
+each deploy (see the workflow's top comment).
+
+```bash
+mkdir -p /opt/mbokk
+cd /opt/mbokk
+```
+
+Generate the app key locally first (don't paste a key you didn't generate
+yourself, and don't send it through chat):
+
+```bash
+cd /path/to/mbokk/api && php artisan key:generate --show
+```
+
+Then on the server:
+
+```bash
+cat > /opt/mbokk/.env <<'ENVEOF'
+APP_KEY=base64:PASTE_THE_GENERATED_KEY_HERE
+DOMAIN=api.mbokk.samafacture.com
+FRONTEND_URL=https://mbokk.samafacture.com
+DB_DATABASE=mbokk
+DB_USERNAME=mbokk
+DB_PASSWORD=CHOOSE_A_FRESH_PASSWORD
+ENVEOF
+```
+
+Notes:
+- `FRONTEND_URL` drives CORS (`api/config/cors.php`) — if `web/` isn't
+  deployed yet, the placeholder above is fine; update this file later
+  once it has a real URL (then re-run the deploy or `docker compose up -d
+  --no-deps app` to pick it up — no CI change needed, it's server-side).
+- `DB_*` — pick fresh values, isolated from instantcaisse's own Postgres
+  (separate container entirely, see `docker-compose.prod.yml`).
+- No `IMAGE_TAG=` line yet — the first deploy adds it.
+
+## 5. Shared proxy — nginx vhost + volumes
 
 SSH in as the user with docker access, then:
 
@@ -99,7 +122,7 @@ cd /opt/proxy
 docker compose up -d --force-recreate nginx
 ```
 
-## 5. TLS certificate
+## 6. TLS certificate
 
 The existing `init-letsencrypt.sh` hardcodes one `DOMAIN` per run — copy
 it rather than editing in place, so instantcaisse's/siwalen's own re-runs
@@ -112,13 +135,14 @@ sed -i 's/DOMAIN="api.sivoiced.samafacture.com"/DOMAIN="api.mbokk.samafacture.co
 EMAIL=you@example.com ./init-letsencrypt-mbokk.sh
 ```
 
-## 6. First deploy
+## 7. First deploy
 
-Push to `main` (or re-run step 2's push) — `.github/workflows/deploy-api.yml`
-builds the image, pushes to DOCR, SSHes in, runs migrations against the new
-image (aborts before touching anything live if that fails), swaps the
-container, and rolls back automatically if the healthcheck doesn't pass
-within 3 minutes.
+Push to `main` — `.github/workflows/deploy-api.yml` builds the image,
+pushes to DOCR, SSHes in, runs migrations against the new image (aborts
+before touching anything live if that fails, and before this step also
+aborts outright if `.env` from step 4 is missing), swaps the container,
+and rolls back automatically if the healthcheck doesn't pass within 3
+minutes.
 
 Watch it in GitHub → Actions. First run also seeds nothing automatically —
 if you want the Mbacké demo data live, SSH in once after the first
@@ -129,7 +153,7 @@ cd /opt/mbokk
 docker compose -f docker-compose.prod.yml --env-file .env exec app php artisan db:seed --class=FamilyTreeSeeder --force
 ```
 
-## 7. Smoke test
+## 8. Smoke test
 
 ```bash
 curl -i https://api.mbokk.samafacture.com/api/search?q=ab
