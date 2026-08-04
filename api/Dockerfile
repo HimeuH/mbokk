@@ -22,6 +22,11 @@ WORKDIR /var/www/html
 
 # Runtime system dependencies — pdo_pgsql only, no gd/exif/redis:
 # no image manipulation, no queue/cache backend beyond Postgres/file.
+# opcache deliberately skipped — on this PHP 8.5 image neither
+# docker-php-ext-install (builds, but produces no modules/*.so) nor
+# docker-php-ext-enable ("'opcache' does not exist") could find/build a
+# loadable module. Not worth blocking the deploy over a performance
+# optimization; revisit as a follow-up, not here.
 RUN apk add --no-cache \
     postgresql-dev \
     curl \
@@ -30,7 +35,6 @@ RUN apk add --no-cache \
     && docker-php-ext-install -j"$(nproc)" \
         pdo \
         pdo_pgsql \
-    && docker-php-ext-enable opcache \
     && wget -O /usr/local/bin/php-fpm-healthcheck \
          https://raw.githubusercontent.com/renatomefi/php-fpm-healthcheck/master/php-fpm-healthcheck \
     && chmod +x /usr/local/bin/php-fpm-healthcheck
