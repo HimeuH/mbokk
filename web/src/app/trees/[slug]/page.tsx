@@ -18,6 +18,7 @@ import { useRequireAuth } from "@/lib/use-require-auth";
 import {
   isEditProposal,
   type FamilyTree,
+  type PaginatedPeople,
   type Person,
   type Relationship,
   type TreeRole,
@@ -45,14 +46,27 @@ export default function TreeDetailPage() {
   const [info, setInfo] = useState<string | null>(null);
   const [view, setView] = useState<"list" | "tree">("list");
   const [selectedTreePerson, setSelectedTreePerson] = useState<Person | null>(null);
+  const [page, setPage] = useState(1);
 
   const { data, isLoading } = useQuery({
     queryKey: ["trees", slug],
     queryFn: () => apiFetch<TreeShowResponse>(`/api/trees/${slug}`),
   });
 
-  const invalidate = () =>
+  // Paginated separately from the tree metadata above — a tree can run into
+  // the thousands of people, and the "Liste" tab only ever needs one page
+  // of them, not the same full graph the SVG "Arbre" tab needs to lay out
+  // (that one still comes from the unpaginated `data.people` above).
+  const { data: peopleData, isLoading: peopleLoading } = useQuery({
+    queryKey: ["tree-people", slug, page],
+    queryFn: () => apiFetch<PaginatedPeople>(`/api/trees/${slug}/people?page=${page}`),
+    enabled: view === "list",
+  });
+
+  const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ["trees", slug] });
+    queryClient.invalidateQueries({ queryKey: ["tree-people", slug] });
+  };
 
   const createPerson = useMutation({
     mutationFn: (formData: FormData) =>
@@ -199,7 +213,9 @@ export default function TreeDetailPage() {
           {/* List header */}
           <div className="flex items-center justify-between border border-border bg-muted px-4 py-2">
             <p className="font-mono text-xs uppercase tracking-wider text-muted-foreground">
-              {people.length} personne{people.length !== 1 ? "s" : ""}
+              {peopleData
+                ? `${peopleData.meta.total} personne${peopleData.meta.total !== 1 ? "s" : ""}`
+                : "…"}
             </p>
             {is_member && (
               <button
@@ -231,12 +247,17 @@ export default function TreeDetailPage() {
 
           {/* People list */}
           <div className="flex flex-col divide-y divide-border border border-t-0 border-border">
-            {people.length === 0 && (
+            {peopleLoading && (
+              <p className="p-6 font-mono text-xs text-center text-muted-foreground">
+                Chargement…
+              </p>
+            )}
+            {peopleData?.people.length === 0 && (
               <p className="p-6 font-mono text-xs text-center text-muted-foreground">
                 Aucune personne pour l&apos;instant.
               </p>
             )}
-            {people.map((person) =>
+            {peopleData?.people.map((person) =>
               editingPerson?.id === person.id ? (
                 <div key={person.id} className="p-4">
                   <PersonForm
@@ -297,6 +318,37 @@ export default function TreeDetailPage() {
               ),
             )}
           </div>
+
+          {/* Pagination */}
+          {peopleData && peopleData.meta.last_page > 1 && (
+            <div className="flex items-center justify-between border border-t-0 border-border px-4 py-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page <= 1}
+                onClick={() => {
+                  setExpandedPersonId(null);
+                  setPage((p) => Math.max(1, p - 1));
+                }}
+              >
+                Précédent
+              </Button>
+              <p className="font-mono text-xs text-muted-foreground">
+                Page {peopleData.meta.current_page} / {peopleData.meta.last_page}
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page >= peopleData.meta.last_page}
+                onClick={() => {
+                  setExpandedPersonId(null);
+                  setPage((p) => Math.min(peopleData.meta.last_page, p + 1));
+                }}
+              >
+                Suivant
+              </Button>
+            </div>
+          )}
         </div>
       )}
 

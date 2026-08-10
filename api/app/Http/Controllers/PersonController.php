@@ -10,12 +10,53 @@ use App\Http\Responses\ApiResponse;
 use App\Models\EditProposal;
 use App\Models\FamilyTree;
 use App\Models\Person;
+use App\Models\TreeMember;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 
 class PersonController extends Controller
 {
+    /**
+     * Fixed, not a client-controlled `per_page` — keeps the response size
+     * predictable regardless of how large a tree gets (some can run into
+     * the thousands), rather than trusting the caller not to ask for all
+     * of them at once and defeat the point of paginating in the first place.
+     */
+    private const PER_PAGE = 30;
+
+    /**
+     * Paginated people list — GET /trees/{slug} still returns the *full*
+     * unpaginated people+relationships graph too (FamilyTreeController),
+     * used by the SVG tree view, which needs every node to lay out the
+     * diagram regardless of pagination; this endpoint is what the "Liste"
+     * tab actually renders from, so browsing a large tree doesn't mean
+     * rendering thousands of rows into the DOM at once.
+     */
+    public function index(Request $request, FamilyTree $tree): JsonResponse
+    {
+        $membership = TreeMember::where('family_tree_id', $tree->id)
+            ->where('user_id', $request->user()->id)
+            ->first();
+
+        $query = $membership ? $tree->people() : $tree->people()->public();
+
+        $people = $query
+            ->orderBy('first_name')
+            ->orderBy('last_name')
+            ->paginate(self::PER_PAGE);
+
+        return ApiResponse::success([
+            'people' => PersonResource::collection($people->items()),
+            'meta' => [
+                'current_page' => $people->currentPage(),
+                'last_page' => $people->lastPage(),
+                'per_page' => $people->perPage(),
+                'total' => $people->total(),
+            ],
+        ]);
+    }
+
     public function store(StorePersonRequest $request, FamilyTree $tree): JsonResponse
     {
         $photoPath = $request->file('photo')?->store('people-photos', 'public');

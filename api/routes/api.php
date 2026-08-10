@@ -51,6 +51,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/trees', [FamilyTreeController::class, 'store']);
     Route::get('/trees/{tree:slug}', [FamilyTreeController::class, 'show']);
 
+    // Paginated — GET /trees/{slug} above still returns every person
+    // unpaginated too, for the SVG tree view; this is what the "Liste" tab
+    // actually renders from (PersonController::index's own docblock).
+    Route::get('/trees/{tree:slug}/people', [PersonController::class, 'index']);
+
     // Owner/admin write directly (PersonPolicy); any other tree member's
     // write becomes an edit_proposals row instead (see the *Controller's
     // Gate::denies branches) — Phase 5.

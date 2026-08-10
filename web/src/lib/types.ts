@@ -85,6 +85,16 @@ export interface Person {
   family_tree?: { id: number; name: string; slug: string };
 }
 
+export interface PaginatedPeople {
+  people: Person[];
+  meta: {
+    current_page: number;
+    last_page: number;
+    per_page: number;
+    total: number;
+  };
+}
+
 export type RelationshipType = "parent_of" | "spouse_of";
 
 export interface Relationship {
