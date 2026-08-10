@@ -17,7 +17,13 @@ class PersonSearchController extends Controller
      */
     public function __invoke(Request $request): JsonResponse
     {
-        $request->validate(['q' => ['required', 'string', 'min:2']]);
+        $request->validate([
+            'q' => ['required', 'string', 'min:2'],
+            // Optional narrowing, e.g. from PersonRelationships' "uniquement
+            // dans cette famille" checkbox — cross-tree search stays the
+            // default (Architecture Laws), this is opt-in on the caller's part.
+            'tree' => ['nullable', 'string', 'exists:family_trees,slug'],
+        ]);
 
         $treeIds = $request->user()->familyTrees()->pluck('family_trees.id');
 
@@ -32,6 +38,15 @@ class PersonSearchController extends Controller
             ->where(function ($query) use ($treeIds) {
                 $query->where('is_public', true)
                     ->orWhereIn('owning_family_tree_id', $treeIds);
+            })
+            ->when($request->filled('tree'), function ($query) use ($request) {
+                // A strict narrowing of the where() above, not a bypass — the
+                // requested tree still has to already be one the user belongs
+                // to or that's public, same privacy scope either way.
+                $query->whereHas(
+                    'owningFamilyTree',
+                    fn ($q) => $q->where('slug', $request->string('tree')),
+                );
             })
             ->limit(20)
             ->get();

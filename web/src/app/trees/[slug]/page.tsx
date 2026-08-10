@@ -290,7 +290,7 @@ export default function TreeDetailPage() {
                           </Button>
                         </div>
                       )}
-                      <PersonRelationships person={person} />
+                      <PersonRelationships person={person} slug={slug} />
                     </div>
                   )}
                 </div>
