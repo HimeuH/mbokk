@@ -40,7 +40,7 @@ export function PersonRelationships({ person, slug }: { person: Person; slug: st
   const queryClient = useQueryClient();
   const [mode, setMode] = useState<"link" | "create">("link");
   const [query, setQuery] = useState("");
-  const [onlyThisFamily, setOnlyThisFamily] = useState(false);
+  const [onlyThisFamily, setOnlyThisFamily] = useState(true);
   const [type, setType] = useState<RelationshipType>("parent_of");
   const [selected, setSelected] = useState<Person | null>(null);
   const [error, setError] = useState<string | null>(null);
