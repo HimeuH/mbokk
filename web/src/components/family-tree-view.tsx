@@ -19,15 +19,37 @@ interface Node {
   person: Person;
   x: number;
   y: number;
+  width: number;
 }
 
-const NODE_WIDTH = 176;
+const MIN_NODE_WIDTH = 176;
+const MAX_NODE_WIDTH = 300;
+const AVATAR_RADIUS = 17;
+const AVATAR_LEFT_PADDING = 10;
+const AVATAR_TEXT_GAP = 10;
+const TEXT_RIGHT_MARGIN = 12;
+// Everything in a card's width besides the name text itself: left padding
+// to the avatar, the avatar's own diameter, the gap to the text, and a
+// right margin — used both to size each card to its name (below) and to
+// place the avatar/text within it (see the render loop, where these are
+// recomputed per node since width is no longer a shared constant).
+const NODE_NON_TEXT_WIDTH =
+  AVATAR_LEFT_PADDING + AVATAR_RADIUS * 2 + AVATAR_TEXT_GAP + TEXT_RIGHT_MARGIN;
+// Rough average glyph width for the 12px bold name text — no canvas
+// measurement available at layout time, just enough to size the card to
+// the name instead of a one-size-fits-all box. Names in this app's actual
+// content (Wolof/Arabic honorifics — "Cheikh Mouhamadou Lamine Bara
+// Mbacké") run much longer than a fixed 176px card ever fit.
+const CHAR_WIDTH_ESTIMATE = 6.8;
+const NODE_GAP = 16;
 const NODE_HEIGHT = 68;
 const GENERATION_HEIGHT = 150;
-const AVATAR_RADIUS = 17;
-// Left edge of the card + padding + avatar radius = avatar center x.
-const AVATAR_CX = -NODE_WIDTH / 2 + 10 + AVATAR_RADIUS;
-const TEXT_X = AVATAR_CX + AVATAR_RADIUS + 10;
+
+function estimateNodeWidth(person: Person): number {
+  const nameLength = `${person.first_name} ${person.last_name}`.length;
+  const needed = NODE_NON_TEXT_WIDTH + nameLength * CHAR_WIDTH_ESTIMATE;
+  return Math.min(MAX_NODE_WIDTH, Math.max(MIN_NODE_WIDTH, needed));
+}
 
 /**
  * Depth of each person from the nearest root (someone in this set with no
@@ -107,14 +129,19 @@ function computeLayout(people: Person[], relationships: Relationship[]): Map<num
 
   const layout = new Map<number, Node>();
   for (const [depth, generationPeople] of generations) {
-    const totalWidth = generationPeople.length * NODE_WIDTH;
-    const startX = -totalWidth / 2 + NODE_WIDTH / 2;
+    const widths = generationPeople.map(estimateNodeWidth);
+    const totalWidth =
+      widths.reduce((sum, w) => sum + w, 0) + NODE_GAP * (widths.length - 1);
+    let cursor = -totalWidth / 2;
     generationPeople.forEach((person, index) => {
+      const width = widths[index];
       layout.set(person.id, {
         person,
-        x: startX + index * NODE_WIDTH,
+        x: cursor + width / 2,
         y: depth * GENERATION_HEIGHT,
+        width,
       });
+      cursor += width + NODE_GAP;
     });
   }
   return layout;
@@ -204,9 +231,14 @@ export function FamilyTreeView({
     else router.push(`/people/${person.id}`);
   };
 
-  const minX = Math.min(0, ...nodes.map((n) => n.x - NODE_WIDTH));
-  const maxX = Math.max(0, ...nodes.map((n) => n.x + NODE_WIDTH));
+  const minX = Math.min(0, ...nodes.map((n) => n.x - n.width));
+  const maxX = Math.max(0, ...nodes.map((n) => n.x + n.width));
   const maxY = Math.max(0, ...nodes.map((n) => n.y)) + GENERATION_HEIGHT;
+  // Content-proportional instead of a fixed height — a fixed height with a
+  // viewBox that grows with generation count leaves the difference
+  // letterboxed (empty bands top/bottom) once there are enough generations
+  // that the two heights stop lining up.
+  const svgHeight = Math.max(320, Math.min(640, maxY + 80));
 
   if (people.length === 0) {
     return (
@@ -248,7 +280,7 @@ export function FamilyTreeView({
       <div className="w-full overflow-hidden border border-border bg-card" style={{ touchAction: "none" }}>
         <svg
           width="100%"
-          height={480}
+          height={svgHeight}
           viewBox={`${minX - 40} ${-40} ${maxX - minX + 80} ${maxY + 40}`}
           style={{
             transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
@@ -280,15 +312,18 @@ export function FamilyTreeView({
               );
             })}
 
-          {nodes.map(({ person, x, y }) => {
+          {nodes.map(({ person, x, y, width }) => {
             const initial = person.first_name.charAt(0).toUpperCase();
             const birthY = person.birth_date?.slice(0, 4) ?? null;
             const deathY = person.death_date?.slice(0, 4) ?? null;
             const subtitle = birthY ? `${birthY} – ${deathY ?? ""}` : null;
             const clipId = `avatar-clip-${person.id}`;
             const textClipId = `text-clip-${person.id}`;
-            // Available text width: right edge of card minus TEXT_X, with a small margin.
-            const textClipWidth = NODE_WIDTH / 2 - TEXT_X - 6;
+            // Positions relative to this card's own (variable) width, since
+            // cards are sized to their name — see estimateNodeWidth().
+            const avatarCx = -width / 2 + AVATAR_LEFT_PADDING + AVATAR_RADIUS;
+            const textX = avatarCx + AVATAR_RADIUS + AVATAR_TEXT_GAP;
+            const textClipWidth = width / 2 - textX - TEXT_RIGHT_MARGIN / 2;
 
             return (
               <g
@@ -298,9 +333,9 @@ export function FamilyTreeView({
                 onClick={() => handleNodeClick(person)}
               >
                 <rect
-                  x={-NODE_WIDTH / 2}
+                  x={-width / 2}
                   y={-NODE_HEIGHT / 2}
-                  width={NODE_WIDTH}
+                  width={width}
                   height={NODE_HEIGHT}
                   rx={10}
                   fill="var(--card)"
@@ -311,11 +346,11 @@ export function FamilyTreeView({
                 {person.photo_url ? (
                   <>
                     <clipPath id={clipId}>
-                      <circle cx={AVATAR_CX} cy={0} r={AVATAR_RADIUS} />
+                      <circle cx={avatarCx} cy={0} r={AVATAR_RADIUS} />
                     </clipPath>
                     <image
                       href={person.photo_url}
-                      x={AVATAR_CX - AVATAR_RADIUS}
+                      x={avatarCx - AVATAR_RADIUS}
                       y={-AVATAR_RADIUS}
                       width={AVATAR_RADIUS * 2}
                       height={AVATAR_RADIUS * 2}
@@ -326,14 +361,14 @@ export function FamilyTreeView({
                 ) : (
                   <>
                     <circle
-                      cx={AVATAR_CX}
+                      cx={avatarCx}
                       cy={0}
                       r={AVATAR_RADIUS}
                       fill="var(--accent)"
                       fillOpacity={0.15}
                     />
                     <text
-                      x={AVATAR_CX}
+                      x={avatarCx}
                       y={0}
                       textAnchor="middle"
                       dominantBaseline="central"
@@ -347,10 +382,10 @@ export function FamilyTreeView({
                 )}
 
                 <clipPath id={textClipId}>
-                  <rect x={TEXT_X} y={-NODE_HEIGHT / 2} width={textClipWidth} height={NODE_HEIGHT} />
+                  <rect x={textX} y={-NODE_HEIGHT / 2} width={textClipWidth} height={NODE_HEIGHT} />
                 </clipPath>
                 <text
-                  x={TEXT_X}
+                  x={textX}
                   y={subtitle ? -6 : 0}
                   dominantBaseline="central"
                   fontSize={12}
@@ -362,7 +397,7 @@ export function FamilyTreeView({
                 </text>
                 {subtitle && (
                   <text
-                    x={TEXT_X}
+                    x={textX}
                     y={10}
                     dominantBaseline="central"
                     fontSize={9.5}
