@@ -120,9 +120,14 @@ COMPOSE="docker compose -f ${COMPOSE_FILE}"
 # ------------------------------------------------------------------------------
 # 4. Migrate on the NEW image, before it serves traffic. This is the one step
 #    that is NOT reversible: the rollback below restores code, never schema.
+#
+#    NOT --no-deps: compose then starts pgsql (and waits for it to be healthy)
+#    before running this. With the flag, a FIRST deploy on a fresh machine fails
+#    with 'could not translate host name "pgsql"', because nothing is running
+#    yet to resolve.
 # ------------------------------------------------------------------------------
 log "Running migrations"
-$COMPOSE run --rm --no-deps app php artisan migrate --force \
+$COMPOSE run --rm app php artisan migrate --force \
   || die "migrations failed — nothing was restarted, the old code is still serving"
 
 # ------------------------------------------------------------------------------
