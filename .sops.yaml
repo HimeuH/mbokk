@@ -1,0 +1,20 @@
+# SOPS — encryption rules.
+#
+# api/deploy/prod.env holds the production configuration, encrypted with age.
+# Only the VALUES are encrypted; the variable NAMES stay readable, so a diff
+# shows WHICH setting changed without revealing what it changed to.
+#
+# THE PRIVATE KEY IS NOT HERE AND NEVER LEAVES THE SERVER. It lives at
+# /opt/mbokk/secrets/age.key on the VPS. Below is only the public half: it can
+# encrypt, it cannot decrypt. GitHub Actions holds no key and cannot read these
+# secrets — the server decrypts them itself at deploy time.
+#
+# The key is specific to THIS app. Other applications on the same VPS have their
+# own, so no app can decrypt another's configuration.
+#
+# It lives under api/ because that is the Docker build context: the encrypted
+# file must ship INSIDE the image, which is how the deploy avoids copying
+# anything over SSH.
+creation_rules:
+  - path_regex: api/deploy/prod\.env$
+    age: age1wy0qctfy4a2u8agzd2d4vnsnr77ywjhhlgmtcwwn8gmfvgyn89ps55y0he

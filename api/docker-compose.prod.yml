@@ -1,0 +1,147 @@
+# Mbokk API — production stack.
+#
+# Runs on a VPS shared with other applications, which drives two rules:
+#
+#   1. NOTHING here publishes a host port. Only the shared edge proxy
+#      (/opt/edge) does; it terminates TLS and forwards HTTP to `web` below.
+#   2. Every container is memory-capped (~650 MB total), so a runaway process
+#      here cannot get a neighbouring app killed by the OOM killer.
+#
+# DOCKER_IMAGE is appended to /opt/mbokk/.env by infra/deploy.sh, pinned to a
+# commit SHA. `latest` is never deployed: it cannot be rolled back to.
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  # ------------------------------------------------------------------
+  # Web — this app's own nginx (docker/nginx/app.conf).
+  # ------------------------------------------------------------------
+  web:
+    image: nginx:1.27-alpine
+    container_name: mbokk-web
+    restart: unless-stopped
+    volumes:
+      - "app_public:/var/www/public:ro"
+      - "storage_public:/var/www/storage-public:ro"
+      - "./docker/nginx/app.conf:/etc/nginx/conf.d/default.conf:ro"
+    depends_on:
+      app:
+        condition: service_healthy
+    networks:
+      - internal
+      - edge
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O- http://127.0.0.1/health | grep -q ok"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+
+  # ------------------------------------------------------------------
+  # PHP-FPM application (api/)
+  # ------------------------------------------------------------------
+  app:
+    image: "${DOCKER_IMAGE}"
+    container_name: mbokk-app
+    restart: unless-stopped
+    environment:
+      APP_ENV: production
+      APP_DEBUG: "false"
+      APP_LOCALE: fr
+      APP_KEY: "${APP_KEY}"
+      APP_URL: "https://${DOMAIN}"
+      FRONTEND_URL: "${FRONTEND_URL}"
+      DB_CONNECTION: pgsql
+      DB_HOST: pgsql
+      DB_PORT: "${DB_PORT:-5432}"
+      DB_DATABASE: "${DB_DATABASE}"
+      DB_USERNAME: "${DB_USERNAME}"
+      DB_PASSWORD: "${DB_PASSWORD}"
+      # Sessions in Postgres, not files. With the file driver every request
+      # wrote into storage/framework/sessions, which is not a mounted volume and
+      # not writable by the php user — so the API answered 500 on every request.
+      # Auth here is Bearer tokens (Sanctum HasApiTokens), so nothing depends on
+      # session persistence; the sessions table already exists in Laravel's
+      # default users migration.
+      SESSION_DRIVER: database
+      CACHE_STORE: database
+      QUEUE_CONNECTION: sync
+      LOG_CHANNEL: stderr
+      # Behind the edge proxy, Laravel must trust the forwarded scheme/host.
+      TRUSTED_PROXIES: "*"
+    volumes:
+      # Static built assets — the entrypoint syncs them in on every boot; `web`
+      # serves them read-only.
+      - "app_public:/var/www/public"
+      # Uploaded person photos (PersonController) — persistent, read-write here,
+      # read-only in nginx, so uploads survive container replacement.
+      - "storage_public:/var/www/html/storage/app/public"
+    depends_on:
+      pgsql:
+        condition: service_healthy
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD-SHELL", "php-fpm-healthcheck || exit 1"]
+      interval: 15s
+      retries: 5
+      start_period: 90s
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          memory: 320M
+
+  # ------------------------------------------------------------------
+  # PostgreSQL — isolated to this app: own volume, own internal network.
+  # Every app on this VPS runs its own, deliberately: a shared instance would
+  # couple their upgrades and make one app's load everyone's problem.
+  # ------------------------------------------------------------------
+  pgsql:
+    image: postgres:16-alpine
+    container_name: mbokk-pgsql
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: "${DB_DATABASE}"
+      POSTGRES_USER: "${DB_USERNAME}"
+      POSTGRES_PASSWORD: "${DB_PASSWORD}"
+    volumes:
+      - "pgsql_data:/var/lib/postgresql/data"
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME} -d ${DB_DATABASE}"]
+      interval: 10s
+      retries: 5
+      timeout: 5s
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+volumes:
+  # Explicit names: the droplet's running stack uses these, so a restore lands
+  # where the app expects it.
+  app_public:
+    name: mbokk_public
+  storage_public:
+    name: mbokk_storage_public
+  pgsql_data:
+
+networks:
+  internal:
+    internal: true
+  # Created by the edge proxy. Only `web` joins it.
+  edge:
+    external: true
+    name: edge

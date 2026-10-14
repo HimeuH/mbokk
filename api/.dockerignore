@@ -1,0 +1,22 @@
+# Secrets must never be baked into the image. The real configuration is
+# deploy/prod.env (SOPS/age encrypted, unreadable without the server's key) and
+# the server decrypts it itself at deploy time.
+.env
+.env.*
+!.env.example
+
+# Reinstalled inside the image
+vendor
+node_modules
+
+# Runtime state — recreated at boot or living on a volume
+storage/logs
+storage/framework/cache
+storage/framework/sessions
+storage/framework/views
+bootstrap/cache
+
+# Not needed at run time
+tests
+phpunit.xml
+.phpunit.cache
